@@ -1,7 +1,8 @@
 use random_number;
 use rodio::*;
+use std::borrow::Borrow;
 use std::fs;
-use std::io::{self, BufReader};
+use std::io::{self, sink, BufReader};
 use std::path::Path;
 use std::process::{exit, Command};
 use std::thread;
@@ -50,7 +51,7 @@ fn main() {
             print!("{}[2J", 27 as char);
             println!("Here are the songs currently in your library:");
             for song in &song_names {
-                println!("{}", song.replace(".mp3", ""));
+                println!("{}", song);
             }
         }
         if order == "download" {
@@ -82,9 +83,48 @@ fn main() {
                     );
                     let sink = Sink::try_new(&stream_handle).unwrap();
                     sink.append(source);
-                    sink.sleep_until_end();
+                    let sink = Arc::new(Mutex::new(sink));
+                    let sink_clone = Arc::clone(&sink);
+                    let input_thread = thread::spawn(move|| {
+                        println!("P - Pause/Unpause L - Lower volume R - Raise volume");
+                        let mut paused = false;
+                        loop {
+                                let mut action = String::new();
+                                io::stdin().read_line(&mut action).unwrap();
+                                action = action.replace("\n", "");
+                                let sink = sink_clone.lock().unwrap();
+                                if action.to_lowercase() == "p" {
+                                    if paused == true {
+                                        sink.play();
+                                        paused = false;
+                                        println!("Unpaused song.");
+                                        continue;
+                                    }
+                                    if paused == false {
+                                        sink.pause();
+                                        paused = true;
+                                        println!("Paused song.");
+                                        continue;
+                                    }
+                            }
+                            if action.to_lowercase() == "l" {
+                                if sink.volume() > 0.0{
+                                    sink.set_volume(sink.volume()  -0.1);
+                                    println!("Current volume is {} ", (sink.volume() * 100.0).round());
+                                }
+                            }
+                            if action.to_lowercase() == "r" {
+                                    sink.set_volume(sink.volume()  +0.1);
+                                    println!("Current volume is {} ", (sink.volume() * 100.0).round());
+                                }
+                        }
+                    });
+                    input_thread.join().unwrap();
+                    sink.lock().unwrap().set_volume(0.3);
+                    sink.lock().unwrap().sleep_until_end();
                     break;
                 }
+                break;
             }
         }
         if order == "play" {
@@ -94,12 +134,11 @@ fn main() {
             file = file.replace("\n", "");
             file = file.to_lowercase();
             for song in &song_names {
-                let filepath = std::env::var("HOME").unwrap()
+                let mut filepath = std::env::var("HOME").unwrap()
                     + "/Music/"
-                    + file.to_lowercase().as_str()
-                    + ".mp3";
+                    + file.to_lowercase().as_str();
                 let path = Path::new(filepath.as_str());
-                let name = file.clone().to_lowercase() + ".mp3";
+                let name = file.clone().to_lowercase();
                 match Path::exists(path) {
                     true => (),
                     false => {
@@ -113,7 +152,7 @@ fn main() {
                         let answer_chars: Vec<char> = answer.chars().collect();
                         if answer_chars[0] == 'y' {
                             for s in &song_names {
-                                println!("{}", s.replace(".mp3", ""));
+                                println!("{}", s);
                             }
                             break;
                         } else {
@@ -121,21 +160,19 @@ fn main() {
                         }
                     }
                 }
-                if file.clone().to_lowercase() + ".mp3" == song.to_lowercase() {
+                if file.clone().to_lowercase() == song.to_lowercase() {
                     // play song
                     println!("Playing {}", file);
                     loop {
                         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
                         let filepath = std::env::var("HOME").unwrap()
                             + "/Music/"
-                            + file.to_lowercase().as_str()
-                            + ".mp3";
+                            + file.to_lowercase().as_str();
                         let audio = BufReader::new(fs::File::open(filepath).unwrap());
                         let source = Decoder::new(audio).unwrap();
                         let sink = Sink::try_new(&stream_handle).unwrap();
                         sink.append(source);
                         let sink = Arc::new(Mutex::new(sink));
-
                         let sink_clone = Arc::clone(&sink);
                         let input_thread = thread::spawn(move|| {
                             println!("P - Pause/Unpause L - Lower volume R - Raise volume");
@@ -144,30 +181,34 @@ fn main() {
                                     let mut action = String::new();
                                     io::stdin().read_line(&mut action).unwrap();
                                     action = action.replace("\n", "");
-                                    let mut sink = sink_clone.lock().unwrap();
-                                    print!("{}", action);
+                                    let sink = sink_clone.lock().unwrap();
                                     if action.to_lowercase() == "p" {
                                         if paused == true {
                                             sink.play();
                                             paused = false;
+                                            println!("Unpaused song.");
                                             continue;
                                         }
                                         if paused == false {
                                             sink.pause();
                                             paused = true;
+                                            println!("Paused song.");
                                             continue;
                                         }
                                 }
                                 if action.to_lowercase() == "l" {
-                                    sink.set_volume(sink.volume() - 0.05);
-                                    println!("Current volume is {} ", (sink.volume() * 100.0).round());
+                                    if sink.volume() > 0.0{
+                                        sink.set_volume(sink.volume()  -0.1);
+                                        println!("Current volume is {} ", (sink.volume() * 100.0).round());
+                                    }
                                 }
                                 if action.to_lowercase() == "r" {
-                                    sink.set_volume(sink.volume()  +0.05);
-                                    println!("Current volume is {} ", (sink.volume() * 100.0).round());
-                                }
+                                        sink.set_volume(sink.volume()  +0.1);
+                                        println!("Current volume is {} ", (sink.volume() * 100.0).round());
+                                    }
                             }
                         });
+                        sink.lock().unwrap().set_volume(0.3);
                         input_thread.join().unwrap();
                         let sink = sink.lock().unwrap();
                         sink.sleep_until_end();
