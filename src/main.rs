@@ -1,11 +1,11 @@
 use random_number;
 use rodio::*;
 use std::fs;
-use std::io::{self, BufReader, Read, Write};
+use std::io::{self, BufReader};
 use std::path::Path;
 use std::process::{exit, Command};
 use std::thread;
-use std::sync::{self, Arc, Mutex};
+use std::sync::{Arc, Mutex};
 fn main() {
     let mut playarg = false;
     let args: Vec<String> = std::env::args().collect();
