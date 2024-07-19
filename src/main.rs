@@ -26,7 +26,6 @@ fn main() {
             return;
         }
     }
-    let mut repeat = false;
     loop {
         let songs = fs::read_dir(std::env::var("HOME").unwrap() + "/Music/").expect("You don't even have a music directory!");
         let song_names: Vec<String> = songs
@@ -43,22 +42,10 @@ fn main() {
             println!("You have no songs in your library!");
             exit(1);
         }
-        println!("What do you want to do? (shuffle, play, download, library, toggle repeat)");
+        println!("What do you want to do? (shuffle, play, download, library)");
         let mut order = String::new();
         io::stdin().read_line(&mut order).unwrap();
         order = order.replace("\n", "");
-        if order == "toggle repeat" {
-            if repeat == false {
-                println!("Repeat enabled.");
-                repeat = true;
-                continue;
-            }
-            if repeat == true {
-                println!("Repeat disabled.");
-                repeat = false;
-                continue;
-            }
-        }
         if order == "library" {
             print!("{}[2J", 27 as char);
             println!("Here are the songs currently in your library:");
@@ -151,7 +138,7 @@ fn main() {
 
                         let sink_clone = Arc::clone(&sink);
                         let input_thread = thread::spawn(move|| {
-                            println!("P - Pause/Unpause");
+                            println!("P - Pause/Unpause L - Lower volume R - Raise volume");
                             let mut paused = false;
                             loop {
                                     let mut action = String::new();
@@ -170,19 +157,20 @@ fn main() {
                                             paused = true;
                                             continue;
                                         }
-                                        if action.to_lowercase() == "l" {
-                                            sink.set_volume(sink.volume() - 0.05);
-                                            println!("Lowered volume by 5.");
-                                        }
+                                }
+                                if action.to_lowercase() == "l" {
+                                    sink.set_volume(sink.volume() - 0.05);
+                                    println!("Current volume is {} ", (sink.volume() * 100.0).round());
+                                }
+                                if action.to_lowercase() == "r" {
+                                    sink.set_volume(sink.volume()  +0.05);
+                                    println!("Current volume is {} ", (sink.volume() * 100.0).round());
                                 }
                             }
                         });
                         input_thread.join().unwrap();
                         let sink = sink.lock().unwrap();
                         sink.sleep_until_end();
-                        if repeat != true {
-                            break;
-                        }
                     }
                 }
             }
