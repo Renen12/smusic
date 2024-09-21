@@ -138,7 +138,7 @@ fn main() {
                     + "/Music/"
                     + file.to_lowercase().as_str();
                 let path = Path::new(filepath.as_str());
-                let name = file.clone().to_lowercase();
+                let name = file.clone();
                 match Path::exists(path) {
                     true => (),
                     false => {
