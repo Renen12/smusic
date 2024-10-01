@@ -79,7 +79,7 @@ fn main() {
                     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
                     let audio = BufReader::new(fs::File::open(to_play).unwrap());
                     let source = Decoder::new(audio).expect(
-                        "Error decoding audio (probably wrong file type (we only support mp3s)): ",
+                        "Error decoding audio",
                     );
                     let sink = Sink::try_new(&stream_handle).unwrap();
                     sink.append(source);
